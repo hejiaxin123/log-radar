@@ -1,0 +1,8 @@
+###日志上报
+POST http://localhost:8084/api/logs
+Content-Type: application/json
+
+{"timestamp":"2026-06-13T19:23:00","level":"ERROR","sourceIp":"192.168.1.1","message":"Connection timeout"}
+
+###日志检索
+GET http://localhost:8084/api/logs/search?keyword=Connection&level=ERROR
