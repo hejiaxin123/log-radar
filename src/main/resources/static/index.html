@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LogRadar 仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+<div id="app">
+    <h2>📊 日志级别分布</h2>
+    <div id="chart1" style="width:600px;height:400px;"></div>
+
+    <h2>📈 日志趋势图（最近1小时）</h2>
+    <div id="chart2" style="width:600px;height:400px;"></div>
+
+    <h2>🚨 告警列表</h2>
+    <table border="1">
+        <tr><th>级别</th><th>窗口内次数</th><th>规则名称</th></tr>
+        <tr v-for="alert in alerts" :key="alert.id">
+            <td>{{ alert.level }}</td>
+            <td>{{ alert.count }}</td>
+            <td>{{ alert.ruleName }}</td>
+        </tr>
+    </table>
+</div>
+<script>
+    const { createApp } = Vue;
+    createApp({
+        data() {
+            return { alerts: [] }
+        },
+        mounted() {
+            // 饼图：日志级别分布
+            fetch('/api/logs/aggregate').then(r => r.json()).then(d => {
+                const chart1 = echarts.init(document.getElementById('chart1'));
+                chart1.setOption({
+                    tooltip: {}, legend: { data: ['日志级别'] },
+                    series: [{
+                        type: 'pie',
+                        data: Object.entries(d.data).map(([k, v]) => ({ name: k, value: v }))
+                    }]
+                });
+            });
+
+            // 折线图：日志趋势图（模拟最近1小时数据）
+            const chart2 = echarts.init(document.getElementById('chart2'));
+            chart2.setOption({
+                tooltip: {}, xAxis: { data: ['10:00','10:10','10:20','10:30','10:40','10:50'] },
+                yAxis: {}, series: [{
+                    type: 'line', name: 'ERROR',
+                    data: [5, 12, 8, 15, 10, 20]
+                }, {
+                    type: 'line', name: 'WARN',
+                    data: [3, 5, 4, 6, 3, 8]
+                }]
+            });
+
+            // 告警列表
+            this.alerts = [
+                { id: 1, level: 'ERROR', count: 10, ruleName: 'ERROR告警' },
+                { id: 2, level: 'WARN', count: 5, ruleName: 'WARN告警' }
+            ];
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

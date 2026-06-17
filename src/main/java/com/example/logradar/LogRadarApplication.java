@@ -20,19 +20,6 @@ public class LogRadarApplication {
     }
 
     @Bean
-    public ApplicationRunner testRocketMQ(LogProducer logProducer) {
-        return args -> {
-            LogRecord testLog = new LogRecord();
-            testLog.setTimestamp(LocalDateTime.now());
-            testLog.setLevel("TEST");
-            testLog.setSourceIp("127.0.0.1");
-            testLog.setMessage("RocketMQ 连接测试");
-            logProducer.send("log-topic", testLog);
-            System.out.println("RocketMQ 发送成功");
-        };
-    }
-
-    @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
