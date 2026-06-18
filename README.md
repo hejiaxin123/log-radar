@@ -213,6 +213,16 @@ mvn spring-boot:run
  - 日志模板管理
  - 多租户支持
 
+## 🔧 重构记录
+
+### LogService.save 方法重构（2026.06.15）
+- **问题**：最初版本采用简单双写（MySQL + ES），MQ 发送失败时数据丢失，无法保证最终一致性
+- **方案**：引入本地消息表（`log_message`）+ 定时任务补偿机制
+    - 写入 MySQL 后，先将消息记录为 `PENDING` 状态存入本地消息表
+    - 尝试发送 MQ，成功则更新为 `SENT`，失败则保持 `PENDING`
+    - 定时任务每 10 秒扫描 `PENDING` 状态的消息，重试发送（最多 5 次）
+    - 超过重试次数标记为 `FAILED`，人工介入处理
+- **效果**：保证日志数据在 MySQL 与 ES 间的最终一致性，不丢消息
 
 ## 👤 作者
 **[何家鑫] - [我的GitHub链接:https://github.com/hejiaxin123/log-radar]**
