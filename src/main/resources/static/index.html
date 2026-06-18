@@ -61,6 +61,18 @@
                 { id: 1, level: 'ERROR', count: 10, ruleName: 'ERROR告警' },
                 { id: 2, level: 'WARN', count: 5, ruleName: 'WARN告警' }
             ];
+
+            //每 30 秒自动请求一次聚合分析接口
+            setInterval(() => {
+                fetch('/api/logs/aggregate').then(r => r.json()).then(d => {
+                    const chart1 = echarts.init(document.getElementById('chart1'));
+                    chart1.setOption({
+                        series: [{
+                            data: Object.entries(d.data).map(([k, v]) => ({ name: k, value: v }))
+                        }]
+                    });
+                });
+            }, 30000);
         }
     }).mount('#app');
 </script>
