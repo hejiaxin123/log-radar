@@ -4,7 +4,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.logradar.entity.AlertRule;
 import com.example.logradar.mapper.AlertRuleMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -14,12 +18,21 @@ public class AlertService extends ServiceImpl<AlertRuleMapper, AlertRule> {
         this.redisTemplate = redisTemplate;
     }
 
+    private volatile List<AlertRule> rulesCache = new ArrayList<>();
+
+    @Scheduled(fixedDelay = 60000)
+    public void reloadRules() {
+        rulesCache = lambdaQuery().eq(AlertRule::getEnabled, 1).list();
+    }
+
     // 滑动窗口检查是否触发告警
     public void checkAlert(String level) {
         // 查出启用的规则
-        AlertRule rule = lambdaQuery().eq(AlertRule::getLevel, level)
-                .eq(AlertRule::getEnabled, 1)
-                .one();
+        // checkAlert 方法中使用 rulesCache 而不是每次查数据库
+        AlertRule rule = rulesCache.stream()
+                .filter(r -> r.getLevel().equals(level))
+                .findFirst()
+                .orElse(null);
         if (rule == null) return;
 
         String zsetKey = "alert:zset:" + level;
@@ -55,5 +68,9 @@ public class AlertService extends ServiceImpl<AlertRuleMapper, AlertRule> {
         System.out.println("告警触发！规则：" + rule.getName() +
                 "，级别：" + rule.getLevel() +
                 "，窗口内出现次数：" + count);
+    }
+    //供测试调用
+    public List<AlertRule> getRulesCache() {
+        return rulesCache;
     }
 }

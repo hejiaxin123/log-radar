@@ -66,13 +66,18 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
 
     // 日志搜索：从 ES 查询
     public List<LogDocument> search(String keyword, String level, LocalDateTime startTime, LocalDateTime endTime) {
+        if (keyword != null && !keyword.isEmpty() && startTime != null && endTime != null) {
+            return logDocumentRepository.findByMessageContainingAndTimestampBetween(keyword, startTime, endTime);
+        }
+        if (level != null && !level.isEmpty() && startTime != null && endTime != null) {
+            return logDocumentRepository.findByLevelAndTimestampBetween(level, startTime, endTime);
+        }
         if (keyword != null && !keyword.isEmpty()) {
             return logDocumentRepository.findByMessageContaining(keyword);
         }
         if (level != null && !level.isEmpty()) {
             return logDocumentRepository.findByLevel(level);
         }
-        // 复杂查询用 ElasticsearchRestTemplate 实现
         return (List<LogDocument>) logDocumentRepository.findAll();
     }
 
@@ -92,6 +97,23 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
             return log;
         }
         return null;
+    }
+
+    //Sys格式日志解析
+    public LogRecord parseSyslog(String rawLog) {
+        // Syslog 格式：<优先级>时间戳 主机名 消息
+        try {
+            String[] parts = rawLog.split(" ", 4);
+            if (parts.length < 4) return null;
+            LogRecord log = new LogRecord();
+            log.setTimestamp(LocalDateTime.now());
+            log.setLevel("INFO"); // Syslog 默认级别
+            log.setSourceIp(parts[2]); // 主机名作为来源IP
+            log.setMessage(parts[3]); // 消息内容
+            return log;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // 聚合分析
