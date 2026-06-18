@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class LogService extends ServiceImpl<LogMapper, LogRecord> {
@@ -91,8 +93,8 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
     public LogRecord parseLog(String rawLog) {
         // 正则匹配：时间戳 级别 IP 消息
         String regex = "\\[(.*?)\\]\\s*\\[(.*?)\\]\\s*\\[(.*?)\\]\\s*(.*)";
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
-        java.util.regex.Matcher matcher = pattern.matcher(rawLog);
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(rawLog);
 
         if (matcher.find()) {
             LogRecord log = new LogRecord();
