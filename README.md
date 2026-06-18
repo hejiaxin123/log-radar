@@ -224,6 +224,11 @@ mvn spring-boot:run
     - 超过重试次数标记为 `FAILED`，人工介入处理
 - **效果**：保证日志数据在 MySQL 与 ES 间的最终一致性，不丢消息
 
+### 责任链模式解析器重构（2026.06.18）
+- **问题**：最初日志解析逻辑散落在 Controller 中，用 if-else 判断格式，新增格式需要修改 Controller 代码，不符合开闭原则
+- **方案**：引入责任链模式，定义 `LogParser` 接口，分别实现 `JsonLogParser`、`RegexLogParser`、`SyslogParser` 三个解析器。`LogService` 通过 `List<LogParser>` 自动注入所有解析器，遍历责任链直到某个解析器返回非 null
+- **效果**：新增解析器只需新建类实现 `LogParser` 接口并加 `@Component`，原有代码零改动，完全符合开闭原则
+
 ## 📊 性能优化记录
 
 ### 10万次压测（2026.06.18）
