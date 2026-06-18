@@ -3,6 +3,8 @@ package com.example.logradar.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.time.LocalDateTime;
 
 @TableName("log_record")
@@ -10,6 +12,7 @@ public class LogRecord {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime timestamp;
     private String level;
     private String sourceIp;

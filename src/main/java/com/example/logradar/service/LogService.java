@@ -9,6 +9,7 @@ import com.example.logradar.entity.LogMessage;
 import com.example.logradar.entity.LogRecord;
 import com.example.logradar.mapper.LogMapper;
 import com.example.logradar.mapper.LogMessageMapper;
+import com.example.logradar.parser.LogParser;
 import com.example.logradar.repository.LogDocumentRepository;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -21,8 +22,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class LogService extends ServiceImpl<LogMapper, LogRecord> {
@@ -32,15 +31,17 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
     private final LogMessageMapper logMessageMapper;
     private final RestTemplate restTemplate;
     private final AlertService alertService;
+    private final List<LogParser> parsers;
 
     public LogService(LogDocumentRepository logDocumentRepository, LogProducer logProducer,
                       LogMessageMapper logMessageMapper, RestTemplate restTemplate,
-                      AlertService alertService) {
+                      AlertService alertService,List<LogParser> parsers) {
         this.logDocumentRepository = logDocumentRepository;
         this.logProducer = logProducer;
         this.logMessageMapper=logMessageMapper;
         this.restTemplate = restTemplate;
         this.alertService=alertService;
+        this.parsers=parsers;
     }
 
     //日志上报：写 MySQL 的同时同步写 ES,添加本地消息表逻辑
@@ -72,7 +73,16 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
         return true;
     }
 
-    // 日志搜索：从 ES 查询
+    // 日志解析
+    public LogRecord parseLog(String raw) {
+        for (LogParser parser : parsers) {
+            LogRecord log = parser.parse(raw);
+            if (log != null) return log;
+        }
+        return null;
+    }
+
+    // 日志检索：从 ES 查询
     public List<LogDocument> search(String keyword, String level, LocalDateTime startTime, LocalDateTime endTime) {
         if (keyword != null && !keyword.isEmpty() && startTime != null && endTime != null) {
             return logDocumentRepository.findByMessageContainingAndTimestampBetween(keyword, startTime, endTime);
@@ -87,41 +97,6 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
             return logDocumentRepository.findByLevel(level);
         }
         return (List<LogDocument>) logDocumentRepository.findAll();
-    }
-
-    // 日志解析
-    public LogRecord parseLog(String rawLog) {
-        // 正则匹配：时间戳 级别 IP 消息
-        String regex = "\\[(.*?)\\]\\s*\\[(.*?)\\]\\s*\\[(.*?)\\]\\s*(.*)";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(rawLog);
-
-        if (matcher.find()) {
-            LogRecord log = new LogRecord();
-            log.setTimestamp(LocalDateTime.parse(matcher.group(1).replace(" ", "T")));
-            log.setLevel(matcher.group(2));
-            log.setSourceIp(matcher.group(3));
-            log.setMessage(matcher.group(4));
-            return log;
-        }
-        return null;
-    }
-
-    //Sys格式日志解析
-    public LogRecord parseSyslog(String rawLog) {
-        // Syslog 格式：<优先级>时间戳 主机名 消息
-        try {
-            String[] parts = rawLog.split(" ", 4);
-            if (parts.length < 4) return null;
-            LogRecord log = new LogRecord();
-            log.setTimestamp(LocalDateTime.now());
-            log.setLevel("INFO"); // Syslog 默认级别
-            log.setSourceIp(parts[2]); // 主机名作为来源IP
-            log.setMessage(parts[3]); // 消息内容
-            return log;
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     // 聚合分析
