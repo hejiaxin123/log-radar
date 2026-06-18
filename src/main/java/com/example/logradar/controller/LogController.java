@@ -3,6 +3,7 @@ package com.example.logradar.controller;
 import com.example.logradar.common.Result;
 import com.example.logradar.entity.LogDocument;
 import com.example.logradar.entity.LogRecord;
+import com.example.logradar.repository.LogDocumentRepository;
 import com.example.logradar.service.AlertService;
 import com.example.logradar.service.LogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,10 +21,13 @@ public class LogController {
     private final LogService logService;
     private final AlertService alertService;
     private final ObjectMapper objectMapper;
-    public LogController(LogService logService, AlertService alertService,ObjectMapper objectMapper) {
+    private final LogDocumentRepository logDocumentRepository;
+    public LogController(LogService logService, AlertService alertService,
+                         ObjectMapper objectMapper,LogDocumentRepository logDocumentRepository) {
         this.logService = logService;
         this.alertService = alertService;
         this.objectMapper=objectMapper;
+        this.logDocumentRepository=logDocumentRepository;
     }
 
     // 日志上报接口
@@ -33,6 +38,7 @@ public class LogController {
             LogRecord log = logService.parseSyslog(body);
             if (log != null) {
                 logService.save(log);
+                alertService.checkAlert(log.getLevel());
                 return Result.success("Syslog 日志已接收");
             }
             return Result.error(400, "Syslog 格式错误");
@@ -41,6 +47,7 @@ public class LogController {
         try {
             LogRecord log = objectMapper.readValue(body, LogRecord.class);
             logService.save(log);
+            alertService.checkAlert(log.getLevel());
             return Result.success("日志上报成功");
         } catch (Exception e) {
             return Result.error(400, "JSON 格式错误");
@@ -73,5 +80,29 @@ public class LogController {
     @GetMapping("/api/logs/aggregate/es")
     public Result<Map<String, Long>> aggregateES() {
         return Result.success(logService.aggregateByLevelES());
+    }
+
+    // LogController.java 中加健康检查接口
+    @GetMapping("/api/health/consistency")
+    public Result<Map<String, Object>> checkConsistency() {
+        Map<String, Object> result = new HashMap<>();
+
+        // MySQL 数据量
+        long mysqlCount = logService.count();
+        result.put("mysqlCount", mysqlCount);
+
+        // ES 数据量
+        long esCount = logDocumentRepository.count();
+        result.put("esCount", esCount);
+
+        // 差异
+        result.put("diff", mysqlCount - esCount);
+        result.put("status", mysqlCount == esCount ? "一致" : "不一致");
+
+        // Canal 最后同步时间（从 ES 中取最新一条日志的时间戳）
+        LocalDateTime lastSyncTime = logService.getLastSyncTime();
+        result.put("lastSyncTime", lastSyncTime);
+
+        return Result.success(result);
     }
 }

@@ -12,4 +12,6 @@ public interface LogDocumentRepository extends ElasticsearchRepository<LogDocume
     // LogDocumentRepository.java
     List<LogDocument> findByLevelAndTimestampBetween(String level, LocalDateTime startTime, LocalDateTime endTime);
     List<LogDocument> findByMessageContainingAndTimestampBetween(String keyword, LocalDateTime startTime, LocalDateTime endTime);
+    boolean existsById(Long id);
+    long count();
 }

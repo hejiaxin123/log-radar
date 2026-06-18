@@ -65,9 +65,30 @@ public class AlertService extends ServiceImpl<AlertRuleMapper, AlertRule> {
 
     // 实际告警（模拟发送通知）
     private void triggerAlert(AlertRule rule, Long count) {
-        System.out.println("告警触发！规则：" + rule.getName() +
+        String msg = "告警触发！规则：" + rule.getName() +
                 "，级别：" + rule.getLevel() +
-                "，窗口内出现次数：" + count);
+                "，窗口内出现次数：" + count;
+
+        switch (rule.getNotifyType()) {
+            case "dingding":
+                sendDingding(msg);
+                break;
+            case "email":
+                sendEmail(msg);
+                break;
+            default:
+                System.out.println(msg); // log_only
+        }
+    }
+
+    private void sendDingding(String msg) {
+        // 模拟钉钉通知
+        System.out.println("钉钉通知：" + msg);
+    }
+
+    private void sendEmail(String msg) {
+        // 模拟邮件通知
+        System.out.println("邮件通知：" + msg);
     }
     //供测试调用
     public List<AlertRule> getRulesCache() {

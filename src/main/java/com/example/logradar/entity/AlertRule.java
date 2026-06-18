@@ -14,6 +14,7 @@ public class AlertRule {
     private Integer cooldownMinutes;
     private Integer enabled;
     private LocalDateTime createTime;
+    private String notifyType;
 
     public AlertRule() {}
 
@@ -34,4 +35,6 @@ public class AlertRule {
     public void setEnabled(Integer enabled) { this.enabled = enabled; }
     public LocalDateTime getCreateTime() { return createTime; }
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
+    public String getNotifyType() { return notifyType; }
+    public void setNotifyType(String notifyType) { this.notifyType = notifyType; }
 }

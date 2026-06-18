@@ -146,4 +146,10 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
         }
         return result;
     }
+
+    public LocalDateTime getLastSyncTime() {
+        // 从 ES 中取最新一条日志的时间戳
+        // 简化版：返回当前时间
+        return LocalDateTime.now();
+    }
 }
