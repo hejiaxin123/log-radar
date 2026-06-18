@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.logradar.entity.AlertRule;
 import com.example.logradar.mapper.AlertRuleMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ public class AlertService extends ServiceImpl<AlertRuleMapper, AlertRule> {
     }
 
     // 滑动窗口检查是否触发告警
+    @Async
     public void checkAlert(String level) {
         // 查出启用的规则
         // checkAlert 方法中使用 rulesCache 而不是每次查数据库

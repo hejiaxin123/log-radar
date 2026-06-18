@@ -29,13 +29,16 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
     private final LogDocumentRepository logDocumentRepository;
     private final LogMessageMapper logMessageMapper;
     private final RestTemplate restTemplate;
+    private final AlertService alertService;
 
     public LogService(LogDocumentRepository logDocumentRepository, LogProducer logProducer,
-                      LogMessageMapper logMessageMapper, RestTemplate restTemplate) {
+                      LogMessageMapper logMessageMapper, RestTemplate restTemplate,
+                      AlertService alertService) {
         this.logDocumentRepository = logDocumentRepository;
         this.logProducer = logProducer;
         this.logMessageMapper=logMessageMapper;
         this.restTemplate = restTemplate;
+        this.alertService=alertService;
     }
 
     //日志上报：写 MySQL 的同时同步写 ES,添加本地消息表逻辑
@@ -52,7 +55,10 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
         msg.setCreateTime(LocalDateTime.now());
         logMessageMapper.insert(msg);
 
-        // 3. 尝试发送 MQ
+        // 3.异步告警检查（不阻塞上报接口）
+        alertService.checkAlert(log.getLevel());
+
+        // 4. 尝试发送 MQ
         try {
             logProducer.send("log-topic", log);
             msg.setStatus("SENT");
