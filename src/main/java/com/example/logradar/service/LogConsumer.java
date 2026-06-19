@@ -55,8 +55,26 @@ public class LogConsumer implements RocketMQListener<LogRecord> {
         if (!buffer.isEmpty()) {
             List<LogDocument> batch = new ArrayList<>(buffer);
             buffer.clear();
-            logDocumentRepository.saveAll(batch);
-            System.out.println("批量写入 ES：" + batch.size() + " 条");
+            try {
+                logDocumentRepository.saveAll(batch);
+                System.out.println("批量写入 ES：" + batch.size() + " 条");
+            } catch (Exception e) {
+                // 整批写入失败，逐条转死信队列，由死信消费者兜底
+                System.err.println("ES 批量写入失败，转死信队列：" + e.getMessage());
+                for (LogDocument doc : batch) {
+                    try {
+                        LogRecord log = new LogRecord();
+                        log.setId(doc.getId());
+                        log.setTimestamp(doc.getTimestamp());
+                        log.setLevel(doc.getLevel());
+                        log.setSourceIp(doc.getSourceIp());
+                        log.setMessage(doc.getMessage());
+                        rocketMQTemplate.convertAndSend("log-topic-dlq", log);
+                    } catch (Exception ex) {
+                        System.err.println("转死信失败，id=" + doc.getId() + "：" + ex.getMessage());
+                    }
+                }
+            }
         }
     }
 
