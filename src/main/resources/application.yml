@@ -16,6 +16,8 @@ spring:
   elasticsearch:
     rest:
       uris: http://localhost:9200
+  aop:
+    auto: true
 
 mybatis-plus:
   configuration:

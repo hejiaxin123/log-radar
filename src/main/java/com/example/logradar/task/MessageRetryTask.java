@@ -23,7 +23,7 @@ public class MessageRetryTask {
         this.logProducer = logProducer;
     }
 
-    @Scheduled(fixedDelay = 5000) // 每 10 秒扫描一次
+    @Scheduled(fixedDelay = 10000) // 每 10 秒扫描一次
     public void retryPendingMessages() {
         List<LogMessage> pendingList = logMessageMapper.selectList(
                 new LambdaQueryWrapper<LogMessage>()
