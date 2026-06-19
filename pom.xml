@@ -89,6 +89,12 @@
             <version>33.0.0-jre</version>
         </dependency>
 
+        <!-- 邮件（JavaMailSender） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

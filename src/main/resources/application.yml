@@ -18,7 +18,14 @@ spring:
       uris: http://localhost:9200
   aop:
     auto: true
-
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
@@ -42,4 +49,9 @@ springdoc:
     path: /v3/api-docs
 knife4j:
   enable: true
+alert:
+  dingding:
+    webhook-url: ${DINGDING_WEBHOOK_URL:}
+  email:
+    recipient: ${EMAIL_RECIPIENT:}
 
