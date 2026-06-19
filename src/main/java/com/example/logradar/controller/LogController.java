@@ -1,12 +1,13 @@
 package com.example.logradar.controller;
 
 import com.example.logradar.common.Result;
+import com.example.logradar.config.RateLimiterConfig;
 import com.example.logradar.entity.LogDocument;
 import com.example.logradar.entity.LogRecord;
 import com.example.logradar.repository.LogDocumentRepository;
 import com.example.logradar.service.AlertService;
 import com.example.logradar.service.LogService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.RateLimiter;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,24 +19,40 @@ import java.util.Map;
 @RestController
 @Validated
 public class LogController {
+
     private final LogService logService;
     private final AlertService alertService;
     private final LogDocumentRepository logDocumentRepository;
+    private final RateLimiterConfig rateLimiterConfig;
+
     public LogController(LogService logService, AlertService alertService,
-                         LogDocumentRepository logDocumentRepository) {
+                         LogDocumentRepository logDocumentRepository,
+                         RateLimiterConfig rateLimiterConfig) {
         this.logService = logService;
         this.alertService = alertService;
         this.logDocumentRepository=logDocumentRepository;
+        this.rateLimiterConfig=rateLimiterConfig;
     }
 
-    // 日志上报接口
+    // 日志上报接口（加限流）
     @PostMapping("/api/logs")
     public Result<String> report(@RequestBody String body) {
+        // 限流判断：如果拿不到令牌，返回 429 提示稍后重试
+        if (!rateLimiterConfig.getRateLimiter().tryAcquire()) {
+            return Result.error(429, "日志上报过于频繁，请稍后重试");
+        }
+
         LogRecord log = logService.parseLog(body);
         if (log == null) return Result.error(400, "日志格式错误");
         logService.save(log);
         alertService.checkAlert(log.getLevel());
         return Result.success("日志上报成功");
+    }
+    // 动态调整 QPS 的管理接口
+    @PutMapping("/api/admin/rate-limit")
+    public Result<String> updateRateLimit(@RequestParam double qps) {
+        rateLimiterConfig.updateRate(qps);
+        return Result.success("限流阈值已更新为 " + qps + " QPS");
     }
     //日志检索接口
     @GetMapping("/api/logs/search")

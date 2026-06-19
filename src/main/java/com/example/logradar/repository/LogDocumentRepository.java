@@ -9,9 +9,16 @@ import java.util.List;
 public interface LogDocumentRepository extends ElasticsearchRepository<LogDocument, Long> {
     List<LogDocument> findByLevel(String level);
     List<LogDocument> findByMessageContaining(String keyword);
-    // LogDocumentRepository.java
     List<LogDocument> findByLevelAndTimestampBetween(String level, LocalDateTime startTime, LocalDateTime endTime);
     List<LogDocument> findByMessageContainingAndTimestampBetween(String keyword, LocalDateTime startTime, LocalDateTime endTime);
+
+    // 新增：keyword + level 组合
+    List<LogDocument> findByLevelAndMessageContaining(String level, String keyword);
+
+    // 新增：keyword + level + 时间 三者组合
+    List<LogDocument> findByLevelAndMessageContainingAndTimestampBetween(
+            String level, String keyword, LocalDateTime startTime, LocalDateTime endTime);
+
     boolean existsById(Long id);
     long count();
 }

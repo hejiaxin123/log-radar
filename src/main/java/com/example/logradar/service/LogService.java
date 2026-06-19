@@ -84,15 +84,29 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
 
     // 日志检索：从 ES 查询
     public List<LogDocument> search(String keyword, String level, LocalDateTime startTime, LocalDateTime endTime) {
+        // keyword + level + 时间（新增）
+        if (keyword != null && !keyword.isEmpty() && level != null && !level.isEmpty()
+                && startTime != null && endTime != null) {
+            return logDocumentRepository.findByLevelAndMessageContainingAndTimestampBetween(
+                    level, keyword, startTime, endTime);
+        }
+        // keyword + level（新增）
+        if (keyword != null && !keyword.isEmpty() && level != null && !level.isEmpty()) {
+            return logDocumentRepository.findByLevelAndMessageContaining(level, keyword);
+        }
+        // keyword + 时间（原有）
         if (keyword != null && !keyword.isEmpty() && startTime != null && endTime != null) {
             return logDocumentRepository.findByMessageContainingAndTimestampBetween(keyword, startTime, endTime);
         }
+        // level + 时间（原有）
         if (level != null && !level.isEmpty() && startTime != null && endTime != null) {
             return logDocumentRepository.findByLevelAndTimestampBetween(level, startTime, endTime);
         }
+        // keyword 单独（原有）
         if (keyword != null && !keyword.isEmpty()) {
             return logDocumentRepository.findByMessageContaining(keyword);
         }
+        // level 单独（原有）
         if (level != null && !level.isEmpty()) {
             return logDocumentRepository.findByLevel(level);
         }

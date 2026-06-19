@@ -8,6 +8,7 @@ import com.example.logradar.mapper.LogMessageMapper;
 import com.example.logradar.service.LogProducer;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -23,12 +24,13 @@ public class MessageRetryTask {
         this.logProducer = logProducer;
     }
 
-    @Scheduled(fixedDelay = 10000) // 每 10 秒扫描一次
+    // 每 10 秒扫描补偿
+    @Scheduled(fixedDelay = 10000)
     public void retryPendingMessages() {
         List<LogMessage> pendingList = logMessageMapper.selectList(
                 new LambdaQueryWrapper<LogMessage>()
                         .eq(LogMessage::getStatus, "PENDING")
-                        .lt(LogMessage::getRetryCount, 5) // 最多重试 5 次
+                        .lt(LogMessage::getRetryCount, 5)
         );
 
         for (LogMessage msg : pendingList) {
@@ -49,5 +51,16 @@ public class MessageRetryTask {
             }
             logMessageMapper.updateById(msg);
         }
+    }
+
+    // 新增：每天凌晨 3 点清理 7 天前的 SENT 消息
+    @Scheduled(cron = "0 0 3 * * ?")
+    public void cleanSentMessages() {
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        LambdaQueryWrapper<LogMessage> wrapper = new LambdaQueryWrapper<LogMessage>()
+                .eq(LogMessage::getStatus, "SENT")
+                .lt(LogMessage::getCreateTime, sevenDaysAgo);
+        logMessageMapper.delete(wrapper);
+        System.out.println("清理 SENT 消息完成，时间点：" + sevenDaysAgo);
     }
 }
