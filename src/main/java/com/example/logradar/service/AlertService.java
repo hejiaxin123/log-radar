@@ -58,8 +58,24 @@ public class AlertService extends ServiceImpl<AlertRuleMapper, AlertRule> {
         // 5. 触发告警
         triggerAlert(rule, count);
 
-        // 6. 设置冷却期（退避）
-        redisTemplate.opsForValue().set(cooldownKey, "1", rule.getCooldownMinutes(), TimeUnit.MINUTES);
+        // 6. 计算冷却时间
+        long cooldownMinutes;
+        if (rule.getBackoffEnabled() != null && rule.getBackoffEnabled() == 1) {
+            // 指数退避：读取当前告警次数，计算退避时间
+            String backoffCountKey = "alert:backoff:count:" + rule.getId();
+            Long backoffCount = redisTemplate.opsForValue().increment(backoffCountKey);
+            // 第一次 count=1 → 5分钟，第二次 count=2 → 20分钟，第三次 count=3 → 45分钟...
+            // 公式：base * 2^(count-1)，上限 1440 分钟（24小时）
+            long base = rule.getBackoffBaseMinutes() != null ? rule.getBackoffBaseMinutes() : 5;
+            cooldownMinutes = base * (1L << Math.min(backoffCount - 1, 8)); // 最多移8位，避免溢出
+            cooldownMinutes = Math.min(cooldownMinutes, 1440); // 上限 24 小时
+            // 设置退避计数器过期时间（问题解决后自动重置）
+            redisTemplate.expire(backoffCountKey, 24, TimeUnit.HOURS);
+        } else {
+            // 固定冷却期
+            cooldownMinutes = rule.getCooldownMinutes();
+        }
+        redisTemplate.opsForValue().set(cooldownKey, "1", cooldownMinutes, TimeUnit.MINUTES);
 
         // 7. 清理本次告警的 ZSET 数据
         redisTemplate.delete(zsetKey);

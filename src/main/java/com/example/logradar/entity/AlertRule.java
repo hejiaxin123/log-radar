@@ -15,6 +15,10 @@ public class AlertRule {
     private Integer enabled;
     private LocalDateTime createTime;
     private String notifyType;
+    // 新增：是否启用指数退避（0=固定冷却，1=指数退避）
+    private Integer backoffEnabled;
+    // 新增：退避基数（单位：分钟，默认5）
+    private Integer backoffBaseMinutes;
 
     public AlertRule() {}
 
@@ -37,4 +41,8 @@ public class AlertRule {
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
     public String getNotifyType() { return notifyType; }
     public void setNotifyType(String notifyType) { this.notifyType = notifyType; }
+    public Integer getBackoffEnabled() { return backoffEnabled; }
+    public void setBackoffEnabled(Integer backoffEnabled) { this.backoffEnabled = backoffEnabled; }
+    public Integer getBackoffBaseMinutes() { return backoffBaseMinutes; }
+    public void setBackoffBaseMinutes(Integer backoffBaseMinutes) { this.backoffBaseMinutes = backoffBaseMinutes; }
 }

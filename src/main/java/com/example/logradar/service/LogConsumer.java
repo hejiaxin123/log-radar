@@ -16,11 +16,7 @@ import java.util.List;
 @Component
 // RocketMQ 默认单线程消费，后续可通过配置扩消费者实例数
 // 比如部署多个实例，或设置 consumeThreadMax = 10
-@RocketMQMessageListener(
-        topic = "log-topic",
-        consumerGroup = "log-radar-consumer",
-        consumeThreadMax = 10  // 预留：最大消费线程数
-)
+@RocketMQMessageListener(topic = "log-topic", consumerGroup = "log-radar-consumer")
 public class LogConsumer implements RocketMQListener<LogRecord> {
 
     private final LogDocumentRepository logDocumentRepository;

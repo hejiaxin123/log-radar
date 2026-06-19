@@ -144,6 +144,7 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
     }
 
     public LocalDateTime getLastSyncTime() {
-        return LocalDateTime.now();
+        LogDocument latest = logDocumentRepository.findTopByOrderByTimestampDesc();
+        return latest != null ? latest.getTimestamp() : null;
     }
 }
