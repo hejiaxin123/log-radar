@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;  // ⬅️ 新增导入
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -33,16 +34,17 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
 
     public LogService(LogDocumentRepository logDocumentRepository, LogProducer logProducer,
                       LogMessageMapper logMessageMapper, RestTemplate restTemplate,
-                      AlertService alertService,List<LogParser> parsers) {
+                      AlertService alertService, List<LogParser> parsers) {
         this.logDocumentRepository = logDocumentRepository;
         this.logProducer = logProducer;
-        this.logMessageMapper=logMessageMapper;
+        this.logMessageMapper = logMessageMapper;
         this.restTemplate = restTemplate;
-        this.alertService=alertService;
-        this.parsers=parsers;
+        this.alertService = alertService;
+        this.parsers = parsers;
     }
 
-    //日志上报：写 MySQL 的同时同步写 ES,添加本地消息表逻辑
+    // 日志上报：写 MySQL 的同时记录本地消息表，保证原子性
+    @Transactional  //  新增：保证步骤1和2原子执行
     @Override
     public boolean save(LogRecord log) {
         // 1. 先写 MySQL
@@ -56,16 +58,16 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
         msg.setCreateTime(LocalDateTime.now());
         logMessageMapper.insert(msg);
 
-        // 3.异步告警检查（不阻塞上报接口）
+        // 3. 异步告警检查（不阻塞上报接口，也不在事务内回滚）
         alertService.checkAlert(log.getLevel());
 
-        // 4. 尝试发送 MQ
+        // 4. 尝试发送 MQ（发送失败不回滚MySQL，由定时任务补偿）
         try {
             logProducer.send("log-topic", log);
             msg.setStatus("SENT");
             logMessageMapper.updateById(msg);
         } catch (Exception e) {
-            // 发送失败，由定时任务补偿重试
+            // 发送失败，由 MessageRetryTask 定时补偿重试，不修改状态
             System.err.println("MQ 发送失败，进入补偿队列：" + e.getMessage());
         }
         return true;
@@ -97,7 +99,7 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
         return (List<LogDocument>) logDocumentRepository.findAll();
     }
 
-    // 聚合分析
+    // MySQL 聚合分析
     public Map<String, Long> aggregateByLevel() {
         Map<String, Long> result = new HashMap<>();
         for (String level : new String[]{"INFO", "WARN", "ERROR", "DEBUG"}) {
@@ -108,7 +110,7 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
         return result;
     }
 
-    //直接用 HTTP 调用 ES 的聚合 API
+    // ES 聚合分析
     public Map<String, Long> aggregateByLevelES() {
         String url = "http://localhost:9200/log_radar/_search";
         String query = "{\"size\":0,\"aggs\":{\"by_level\":{\"terms\":{\"field\":\"level\"}}}}";
@@ -116,7 +118,6 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(query, headers);
         ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
-        // 解析返回结果
         Map<String, Object> body = response.getBody();
         Map<String, Object> aggs = (Map<String, Object>) body.get("aggregations");
         Map<String, Object> byLevel = (Map<String, Object>) aggs.get("by_level");
@@ -129,8 +130,6 @@ public class LogService extends ServiceImpl<LogMapper, LogRecord> {
     }
 
     public LocalDateTime getLastSyncTime() {
-        // 从 ES 中取最新一条日志的时间戳
-        // 简化版：返回当前时间
         return LocalDateTime.now();
     }
 }
